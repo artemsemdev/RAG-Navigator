@@ -1,0 +1,87 @@
+@page
+@model IndexModel
+@{
+    Layout = "_Layout";
+}
+
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="logo">RAG Navigator</h1>
+            <p class="tagline">Engineering Knowledge Assistant</p>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-header">
+                <h2>Indexed Documents</h2>
+                <button id="btn-reindex" class="btn btn-sm" title="Re-index sample data">
+                    <span class="btn-icon">&#x21bb;</span> Reindex
+                </button>
+            </div>
+            <div id="document-list" class="document-list">
+                <p class="muted">Loading...</p>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <label class="toggle-label">
+                <input type="checkbox" id="debug-toggle" />
+                <span>Debug Mode</span>
+            </label>
+        </div>
+
+        <div class="sidebar-footer">
+            <p class="muted">Azure OpenAI + AI Search</p>
+            <p class="muted">Hybrid RAG Demo</p>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Chat Messages -->
+        <div id="chat-messages" class="chat-messages">
+            <div class="welcome-message">
+                <h2>Welcome to RAG Navigator</h2>
+                <p>Ask questions about engineering documents — architecture decisions, runbooks, postmortems, and more.</p>
+                <p class="muted">Your answers are grounded in indexed documents with citations.</p>
+                <div class="example-questions">
+                    <p><strong>Try asking:</strong></p>
+                    <button class="example-btn" onclick="askExample(this)">What is our event-driven architecture approach?</button>
+                    <button class="example-btn" onclick="askExample(this)">How do we handle database failovers?</button>
+                    <button class="example-btn" onclick="askExample(this)">What happened in the February API outage?</button>
+                    <button class="example-btn" onclick="askExample(this)">What are our API design guidelines?</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-container">
+            <form id="chat-form" class="chat-form">
+                <input type="text"
+                       id="question-input"
+                       class="chat-input"
+                       placeholder="Ask a question about your engineering documents..."
+                       autocomplete="off"
+                       required />
+                <button type="submit" id="btn-send" class="btn btn-primary">
+                    Send
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Debug Panel -->
+    <aside id="debug-panel" class="debug-panel hidden">
+        <div class="debug-header">
+            <h3>Debug Info</h3>
+            <button onclick="closeDebugPanel()" class="btn-close">&times;</button>
+        </div>
+        <div id="debug-content" class="debug-content">
+            <p class="muted">Ask a question with debug mode enabled to see retrieval details.</p>
+        </div>
+    </aside>
+</div>
+
+<!-- Status Toast -->
+<div id="toast" class="toast hidden"></div>

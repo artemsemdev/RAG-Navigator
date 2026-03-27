@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAG Navigator — Engineering Knowledge Assistant</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <nav class="top-nav">
+        <a href="/" class="nav-brand">RAG Navigator</a>
+        <div class="nav-links">
+            <a href="/" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Index" ? "active" : "")">Chat</a>
+            <a href="/Architecture" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Architecture" ? "active" : "")">Architecture</a>
+            <a href="/Decisions" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Decisions" ? "active" : "")">ADRs</a>
+            <a href="/Operations" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Operations" ? "active" : "")">Operations</a>
+        </div>
+    </nav>
+    @RenderBody()
+    @await RenderSectionAsync("Scripts", required: false)
+    <script src="~/js/site.js"></script>
+</body>
+</html>

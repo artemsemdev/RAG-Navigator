@@ -1,0 +1,133 @@
+@page
+@model OperationsModel
+@{
+    Layout = "_Layout";
+}
+
+<div class="page-container">
+    <div class="page-content">
+        <h1>Operations & Runbook</h1>
+        <p class="page-subtitle">Operational procedures, troubleshooting, and Well-Architected Review summary.</p>
+
+        <section class="arch-section">
+            <h2>Common Operations</h2>
+
+            <div class="ops-card">
+                <h3>Reindex Documents</h3>
+                <p>Click the <strong>Reindex</strong> button in the chat sidebar, or call the API directly:</p>
+                <pre><code>curl -X POST http://localhost:5000/api/index/reindex</code></pre>
+                <p>This scans <code>sample-data/</code> and <code>docs/architecture/</code>, chunks all markdown/text files, generates embeddings, and uploads to Azure AI Search.</p>
+            </div>
+
+            <div class="ops-card">
+                <h3>Diagnose Failed Ingestion</h3>
+                <ol>
+                    <li>Check that <code>sample-data/</code> and <code>docs/architecture/</code> folders exist at the repo root.</li>
+                    <li>Check application logs for <code>DocumentProcessor</code> messages (file count, chunk count, errors).</li>
+                    <li>Verify Azure OpenAI connectivity: check endpoint URL and API key / <code>az login</code> session.</li>
+                    <li>Verify Azure AI Search connectivity: check endpoint URL and API key.</li>
+                    <li>Look for HTTP 429 (rate limiting) errors in logs — wait and retry.</li>
+                </ol>
+            </div>
+
+            <div class="ops-card">
+                <h3>Troubleshoot Poor Answers</h3>
+                <ol>
+                    <li><strong>Enable Debug Mode</strong> — toggle it in the sidebar and re-ask the question.</li>
+                    <li>Check if the right chunks are being retrieved (debug panel shows chunks + scores).</li>
+                    <li>If the right document is there but the wrong section, try rephrasing with terms from the target section.</li>
+                    <li>If no relevant chunks appear, verify the document is indexed (check sidebar document list).</li>
+                    <li>If scores are very low (&lt; 0.01), the query may not match document content semantically or lexically.</li>
+                </ol>
+            </div>
+
+            <div class="ops-card">
+                <h3>Validate Azure Configuration</h3>
+                <pre><code>echo "OpenAI Endpoint: ${AZURE_OPENAI_ENDPOINT:-(not set)}"
+echo "Chat Deployment: ${AZURE_OPENAI_CHAT_DEPLOYMENT:-(not set)}"
+echo "Embedding Deployment: ${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-(not set)}"
+echo "Search Endpoint: ${AZURE_SEARCH_ENDPOINT:-(not set)}"
+echo "Search Index: ${AZURE_SEARCH_INDEX_NAME:-(not set)}"</code></pre>
+                <p>The app validates configuration on startup — missing required settings produce clear error messages.</p>
+            </div>
+
+            <div class="ops-card">
+                <h3>Reset Search Index</h3>
+                <pre><code># Delete index manually
+curl -X DELETE -H "api-key: $AZURE_SEARCH_API_KEY" \
+  "$AZURE_SEARCH_ENDPOINT/indexes/rag-navigator-index?api-version=2024-07-01"
+
+# Rebuild
+curl -X POST http://localhost:5000/api/index/reindex</code></pre>
+            </div>
+        </section>
+
+        <section class="arch-section">
+            <h2>Well-Architected Review Summary</h2>
+            <p>Evaluated against the five pillars of the Azure Well-Architected Framework.</p>
+
+            <div class="waf-grid">
+                <div class="waf-card">
+                    <div class="waf-header reliability">Reliability</div>
+                    <div class="waf-score">2/5</div>
+                    <p><strong>Strength:</strong> Rebuildable index from source files; SDK built-in retries.</p>
+                    <p><strong>Gap:</strong> No health checks, no circuit breakers, all-or-nothing ingestion.</p>
+                    <p><strong>Next:</strong> Add <code>/health</code> endpoints and per-file error handling.</p>
+                </div>
+                <div class="waf-card">
+                    <div class="waf-header security">Security</div>
+                    <div class="waf-score">2/5</div>
+                    <p><strong>Strength:</strong> Managed identity support built in; no hardcoded secrets.</p>
+                    <p><strong>Gap:</strong> No user auth, basic input validation, instruction-level prompt injection defense.</p>
+                    <p><strong>Next:</strong> Input length limits, Key Vault migration.</p>
+                </div>
+                <div class="waf-card">
+                    <div class="waf-header cost">Cost Optimization</div>
+                    <div class="waf-score">3/5</div>
+                    <p><strong>Strength:</strong> Right-sized resources, documented cost model.</p>
+                    <p><strong>Gap:</strong> No cost alerts, no caching, full reindex re-embeds everything.</p>
+                    <p><strong>Next:</strong> Cost Management alerts, incremental indexing.</p>
+                </div>
+                <div class="waf-card">
+                    <div class="waf-header operations">Operational Excellence</div>
+                    <div class="waf-score">3/5</div>
+                    <p><strong>Strength:</strong> Structured logging, debug mode, configuration validation.</p>
+                    <p><strong>Gap:</strong> No Application Insights, no metrics, no CI/CD pipeline.</p>
+                    <p><strong>Next:</strong> Add Application Insights SDK.</p>
+                </div>
+                <div class="waf-card">
+                    <div class="waf-header performance">Performance Efficiency</div>
+                    <div class="waf-score">3/5</div>
+                    <p><strong>Strength:</strong> Efficient batching, single hybrid search call.</p>
+                    <p><strong>Gap:</strong> No streaming, sequential embedding, no caching.</p>
+                    <p><strong>Next:</strong> SSE streaming for LLM responses.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="arch-section">
+            <h2>Production Evolution Roadmap</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Enhancement</th>
+                        <th>Complexity</th>
+                        <th>Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Add health check endpoints</td><td>Low</td><td>Enables orchestrator probes and monitoring</td></tr>
+                    <tr><td>Add Application Insights</td><td>Low</td><td>Automatic request/dependency telemetry</td></tr>
+                    <tr><td>Semantic ranker</td><td>Low</td><td>Better retrieval quality with L2 re-ranking</td></tr>
+                    <tr><td>SSE streaming</td><td>Medium</td><td>Improves perceived latency for answers</td></tr>
+                    <tr><td>Azure AD authentication</td><td>Medium</td><td>User identity and access control</td></tr>
+                    <tr><td>Document upload via UI</td><td>Medium</td><td>Self-service corpus management</td></tr>
+                    <tr><td>Conversation memory</td><td>Medium</td><td>Multi-turn Q&A context</td></tr>
+                    <tr><td>Blue-green indexing</td><td>Medium</td><td>Zero-downtime reindexing</td></tr>
+                    <tr><td>Bicep/Terraform IaC</td><td>Medium</td><td>Reproducible infrastructure</td></tr>
+                    <tr><td>Agentic retrieval</td><td>High</td><td>Multi-step query decomposition</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+</div>

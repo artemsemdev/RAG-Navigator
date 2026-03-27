@@ -1,0 +1,130 @@
+@page
+@model DecisionsModel
+@{
+    Layout = "_Layout";
+}
+
+<div class="page-container">
+    <div class="page-content">
+        <h1>Architecture Decision Records</h1>
+        <p class="page-subtitle">Key architectural decisions and their rationale. Each ADR is indexed in the RAG corpus.</p>
+
+        <section class="arch-section">
+            <h2>Decision Summary</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Decision</th>
+                        <th>Status</th>
+                        <th>Key Rationale</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>ADR-001</strong></td>
+                        <td>Modular Monolith Over Microservices</td>
+                        <td><span class="badge badge-accepted">Accepted</span></td>
+                        <td>Right-sized for demo scope; clean internal boundaries without distributed system complexity</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ADR-002</strong></td>
+                        <td>Code-First Classic RAG</td>
+                        <td><span class="badge badge-accepted">Accepted</span></td>
+                        <td>Makes the RAG pipeline fully visible and explainable; avoids black-box abstraction</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ADR-003</strong></td>
+                        <td>Hybrid Retrieval (Keyword + Vector)</td>
+                        <td><span class="badge badge-accepted">Accepted</span></td>
+                        <td>Combines exact term matching with semantic understanding; RRF fusion requires no tuning</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ADR-004</strong></td>
+                        <td>Architecture Docs as Part of RAG Corpus</td>
+                        <td><span class="badge badge-accepted">Accepted</span></td>
+                        <td>System can explain its own design; enriches demo corpus; validates chunker on diverse content</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="arch-section">
+            <h2>ADR-001: Modular Monolith Over Microservices</h2>
+            <div class="adr-detail">
+                <p><strong>Context:</strong> RAG Navigator has three logical concerns (ingestion, retrieval, answer generation) that could be deployed as separate services or as a single application with internal boundaries.</p>
+                <p><strong>Decision:</strong> Deploy as a single ASP.NET Core application with a three-layer internal architecture (Application, Infrastructure, Web).</p>
+                <p><strong>Rationale:</strong></p>
+                <ul>
+                    <li>Single team, single deployment target, small corpus — microservices add complexity with zero architectural benefit at this scale.</li>
+                    <li>Project references enforce the same dependency rules as separate services (Application defines interfaces, Infrastructure implements them).</li>
+                    <li>If a component needs independent scaling later, the interface boundaries make extraction straightforward.</li>
+                </ul>
+                <p><strong>Alternatives rejected:</strong> Microservices (over-engineered), Azure Functions (fragments codebase), single project without layers (doesn't demonstrate separation of concerns).</p>
+            </div>
+        </section>
+
+        <section class="arch-section">
+            <h2>ADR-002: Code-First Classic RAG</h2>
+            <div class="adr-detail">
+                <p><strong>Context:</strong> Several frameworks (Semantic Kernel, Kernel Memory, LangChain equivalents) abstract the RAG pipeline. These accelerate development but hide the mechanics.</p>
+                <p><strong>Decision:</strong> Implement the RAG pipeline using direct Azure SDK calls with hand-written service classes and clear interfaces.</p>
+                <p><strong>Rationale:</strong></p>
+                <ul>
+                    <li>The purpose is demonstration, not acceleration. Using a framework that abstracts the core pipeline would be counterproductive.</li>
+                    <li>Every pipeline stage is visible: chunking, embedding, indexing, retrieval, prompting, completion, citation extraction.</li>
+                    <li>A reviewer can trace the entire pipeline by reading six files.</li>
+                </ul>
+                <p><strong>Alternatives rejected:</strong> Semantic Kernel (hides pipeline behind <code>kernel.InvokeAsync()</code>), Kernel Memory (one-call ingestion hides what we want to show).</p>
+            </div>
+        </section>
+
+        <section class="arch-section">
+            <h2>ADR-003: Hybrid Retrieval (Keyword + Vector)</h2>
+            <div class="adr-detail">
+                <p><strong>Context:</strong> Azure AI Search supports keyword-only, vector-only, and hybrid retrieval modes.</p>
+                <p><strong>Decision:</strong> Use hybrid retrieval combining BM25 keyword search and HNSW vector search, merged by Reciprocal Rank Fusion (RRF).</p>
+                <p><strong>Rationale:</strong></p>
+                <ul>
+                    <li>Keyword search excels at exact terms, acronyms, and error codes. Vector search excels at paraphrased and conceptual queries. Hybrid captures both.</li>
+                    <li>RRF merges ranked lists without requiring score normalization or weight tuning.</li>
+                    <li>Azure AI Search handles RRF server-side — one API call executes both retrieval methods.</li>
+                </ul>
+                <p><strong>Future improvement:</strong> Add Azure AI Search semantic ranker for L2 re-ranking on top of hybrid search.</p>
+            </div>
+        </section>
+
+        <section class="arch-section">
+            <h2>ADR-004: Architecture Docs as Part of RAG Corpus</h2>
+            <div class="adr-detail">
+                <p><strong>Context:</strong> The project has a comprehensive architecture documentation set alongside sample engineering documents.</p>
+                <p><strong>Decision:</strong> Include the architecture documents in the indexed RAG corpus.</p>
+                <p><strong>Rationale:</strong></p>
+                <ul>
+                    <li>The most compelling demo is one that answers questions about its own design.</li>
+                    <li>Adds 20+ detailed documents to the corpus, increasing topic coverage and question variety.</li>
+                    <li>Validates that the chunker handles diverse markdown structures (tables, diagrams, cross-references).</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="arch-section">
+            <h2>Decisions Not Taken</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Decision</th>
+                        <th>Reason Not Taken</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Use Semantic Kernel</td><td>Hides the pipeline behind framework abstractions</td></tr>
+                    <tr><td>Use Cosmos DB for storage</td><td>No need for a separate store when Azure AI Search holds all indexed data</td></tr>
+                    <tr><td>Use Azure Functions</td><td>Fragments codebase; synchronous ingestion is sufficient for demo corpus</td></tr>
+                    <tr><td>Use Event Grid for reindex</td><td>Over-engineered for a manual reindex button</td></tr>
+                    <tr><td>Multiple search indexes</td><td>Single index with metadata fields is simpler and sufficient</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+</div>

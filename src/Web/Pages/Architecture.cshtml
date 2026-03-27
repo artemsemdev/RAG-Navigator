@@ -1,0 +1,168 @@
+@page
+@model ArchitectureModel
+@{
+    Layout = "_Layout";
+}
+
+<div class="page-container">
+    <div class="page-content">
+        <h1>Architecture Overview</h1>
+        <p class="page-subtitle">Solution architecture for RAG Navigator — a code-first Azure RAG application.</p>
+
+        <!-- Context Diagram -->
+        <section class="arch-section">
+            <h2>System Context</h2>
+            <p>RAG Navigator is an ASP.NET Core web application that connects to Azure OpenAI for embedding generation and chat completion, and Azure AI Search for hybrid document retrieval.</p>
+            <div class="diagram-container">
+                <pre class="diagram-mermaid">
+C4Context
+    Person(engineer, "Engineer", "Asks questions about engineering documents")
+    System(ragnavigator, "RAG Navigator", "ASP.NET Core web app — ingests docs, retrieves context, generates grounded answers")
+    System_Ext(aoai, "Azure OpenAI", "Embedding generation + Chat completion (GPT-4o)")
+    System_Ext(aisearch, "Azure AI Search", "Hybrid search index — Keyword + Vector retrieval")
+    SystemDb_Ext(filesystem, "File System", "Source documents (.md, .txt files)")
+    Rel(engineer, ragnavigator, "Questions, reindex requests", "HTTPS")
+    Rel(ragnavigator, aoai, "Embed text, generate answers", "HTTPS")
+    Rel(ragnavigator, aisearch, "Create index, upload chunks, hybrid search", "HTTPS")
+    Rel(ragnavigator, filesystem, "Read documents", "File I/O")
+                </pre>
+            </div>
+        </section>
+
+        <!-- Container Diagram -->
+        <section class="arch-section">
+            <h2>Application Architecture</h2>
+            <p>The application uses a three-layer modular monolith architecture. All layers are deployed as a single unit but maintain clean dependency boundaries through project references and interfaces.</p>
+            <div class="arch-layers">
+                <div class="arch-layer">
+                    <div class="arch-layer-header web">Web Layer</div>
+                    <div class="arch-layer-body">
+                        <span class="arch-component">Razor Pages UI</span>
+                        <span class="arch-component">POST /api/chat</span>
+                        <span class="arch-component">POST /api/index/reindex</span>
+                        <span class="arch-component">GET /api/index/documents</span>
+                    </div>
+                </div>
+                <div class="arch-layer">
+                    <div class="arch-layer-header app">Application Layer</div>
+                    <div class="arch-layer-body">
+                        <span class="arch-component">RagOrchestrator</span>
+                        <span class="arch-component">DocumentProcessor</span>
+                        <span class="arch-component">MarkdownDocumentChunker</span>
+                        <span class="arch-component">PromptBuilder</span>
+                    </div>
+                </div>
+                <div class="arch-layer">
+                    <div class="arch-layer-header infra">Infrastructure Layer</div>
+                    <div class="arch-layer-body">
+                        <span class="arch-component">AzureOpenAI EmbeddingService</span>
+                        <span class="arch-component">AzureOpenAI ChatService</span>
+                        <span class="arch-component">AzureSearch IndexService</span>
+                        <span class="arch-component">AzureSearch RetrievalService</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Flows -->
+        <section class="arch-section">
+            <h2>Data Flows</h2>
+
+            <h3>Query Pipeline</h3>
+            <div class="flow-diagram">
+                <div class="flow-step">User Question</div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">Embed Query</div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">Hybrid Search<br/><small>Keyword + Vector</small></div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">Build Prompt<br/><small>Context + Question</small></div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">LLM Answer</div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">Citations</div>
+            </div>
+
+            <h3>Ingestion Pipeline</h3>
+            <div class="flow-diagram">
+                <div class="flow-step">Read Files</div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">Chunk<br/><small>By headings</small></div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">Embed<br/><small>Batch of 16</small></div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">Create Index</div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">Upload<br/><small>Chunks + Vectors</small></div>
+            </div>
+        </section>
+
+        <!-- Key Design Decisions -->
+        <section class="arch-section">
+            <h2>Key Design Decisions</h2>
+            <div class="decision-grid">
+                <div class="decision-card">
+                    <h4>Modular Monolith</h4>
+                    <p>Single deployable unit with clean internal boundaries. Right-sized for scope — avoids distributed system complexity without sacrificing separation of concerns.</p>
+                    <a href="/Decisions" class="decision-link">ADR-001 &rarr;</a>
+                </div>
+                <div class="decision-card">
+                    <h4>Code-First RAG</h4>
+                    <p>Direct Azure SDK usage instead of orchestration frameworks. Every pipeline step is explicit and explainable — optimized for interview value.</p>
+                    <a href="/Decisions" class="decision-link">ADR-002 &rarr;</a>
+                </div>
+                <div class="decision-card">
+                    <h4>Hybrid Retrieval</h4>
+                    <p>BM25 keyword search + HNSW vector search merged by Reciprocal Rank Fusion. Captures both exact term matches and semantic similarity.</p>
+                    <a href="/Decisions" class="decision-link">ADR-003 &rarr;</a>
+                </div>
+                <div class="decision-card">
+                    <h4>Docs as Corpus</h4>
+                    <p>Architecture documents are indexed alongside sample data. The system can answer questions about its own design — demonstrating value on its own artifacts.</p>
+                    <a href="/Decisions" class="decision-link">ADR-004 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Non-Functional Summary -->
+        <section class="arch-section">
+            <h2>Non-Functional Considerations</h2>
+            <div class="nfr-grid">
+                <div class="nfr-item">
+                    <h4>Security</h4>
+                    <p>Managed identity support, prompt injection awareness, operator-controlled corpus, no hardcoded secrets.</p>
+                </div>
+                <div class="nfr-item">
+                    <h4>Observability</h4>
+                    <p>Structured logging at every pipeline stage, debug mode UI, Application Insights-ready.</p>
+                </div>
+                <div class="nfr-item">
+                    <h4>Reliability</h4>
+                    <p>SDK built-in retries, cancellation token support, rebuildable index from source files.</p>
+                </div>
+                <div class="nfr-item">
+                    <h4>Performance</h4>
+                    <p>2-5s query latency (LLM-dominated), embedding batching, single hybrid search call.</p>
+                </div>
+                <div class="nfr-item">
+                    <h4>Cost</h4>
+                    <p>~$76/month for demo usage. Documented cost drivers and optimization strategies.</p>
+                </div>
+                <div class="nfr-item">
+                    <h4>Scalability</h4>
+                    <p>Stateless app (horizontal scaling), Search replicas, OpenAI PTU path documented.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="arch-section">
+            <h2>Full Documentation</h2>
+            <p>The complete architecture documentation is available in <code>docs/architecture/</code> and is indexed as part of the RAG corpus. Ask the assistant questions like:</p>
+            <ul>
+                <li>"What are the security risks in this system?"</li>
+                <li>"How does the deployment topology work?"</li>
+                <li>"What would you change for production?"</li>
+            </ul>
+        </section>
+    </div>
+</div>
